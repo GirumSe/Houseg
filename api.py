@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import Dict
@@ -6,9 +6,9 @@ from  jwt import JWTError, jwt
 from datetime import datetime, timedelta
 
 # Secret key to encode the JWT token
-SECRET_KEY = "your_secret_key"
+SECRET_KEY = "4adc1a699a4c91598fe5aa517943c7b7e04cd27c2d616c7106630d20a0925a84"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 100
 
 # Dummy user database
 fake_users_db = {
@@ -54,9 +54,9 @@ def authenticate_user(fake_db, username: str, password: str):
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now() + timedelta(minutes=30)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
