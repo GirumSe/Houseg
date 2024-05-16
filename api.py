@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import Dict
-from jose import JWTError, jwt
+from  jwt import JWTError, jwt
 from datetime import datetime, timedelta
 
 # Secret key to encode the JWT token
