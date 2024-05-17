@@ -5,8 +5,11 @@ name = "pypi"
 
 [packages]
 fastapi = "*"
+pycryptodome = "*"
 pyjwt = "*"
-jwt = "*"
+databases = "*"
+sqlalchemy = "*"
+pymysql = "*"
 
 [dev-packages]
 
