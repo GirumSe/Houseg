@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "653a078ea8d3fbbe57d8cb179ccf9f118a20c47196ce48a734631617324a2547"
+            "sha256": "25b84edaa07806c1e9fe56ebf5f09f7094827ca33b514b732bbe145c19a50051"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -16,6 +16,15 @@
         ]
     },
     "default": {
+        "aiomysql": {
+            "hashes": [
+                "sha256:558b9c26d580d08b8c5fd1be23c5231ce3aeff2dadad989540fee740253deb67",
+                "sha256:b7c26da0daf23a5ec5e0b133c03d20657276e4eae9b73e040b72787f6f6ade0a"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.7'",
+            "version": "==0.2.0"
+        },
         "annotated-types": {
             "hashes": [
                 "sha256:0641064de18ba7a25dee8f96403ebc39113d0cb953a01429249d5c7564666a43",
