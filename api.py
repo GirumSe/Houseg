@@ -1,10 +1,15 @@
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field, validator
 
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import jwt
+import shutil
+import os
+import time
+import random
+import string
 
 from datetime import datetime, timedelta
 
@@ -89,7 +94,7 @@ class Location(BaseModel):
     image_name: str
     address: str
     house_count: int
-    username: str
+    user_id: int
 
 class UserInDB(User):
     password: str
@@ -99,6 +104,11 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     
+class LocationCreate(BaseModel):
+    latitude: str
+    longitude: str
+    image_url: str    
+
 class UserLogin(BaseModel):
     username: str
     password: str
@@ -127,6 +137,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 def get_password_hash(password):
     return pwd_context.hash(password)
+
+def generate_unique_image_name():
+    timestamp = int(time.time())
+    random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+    unique_name = f"{timestamp}_{random_str}"
+    ext = "jpg"
+    unique_image_name = f"{unique_name}.{ext}"
+    return unique_image_name
 
 @app.post("/register", response_model=User)
 async def register_user(user: UserCreate, db: Session = Depends(get_db)):
@@ -169,6 +187,16 @@ async def login_for_access_token(user: UserLogin, db: Session = Depends(get_db))
         data={"sub": db_user.username}, expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer", name=db_user.username)
+
+
+@app.post("/locations", response_model=LocationCreate)
+async def create_location(latitude: str,longitude: str, image: UploadFile = File(...), db: Session = Depends(get_db)):
+    unique_image_name = generate_unique_image_name()
+    image_path = f"images/{unique_image_name}"
+    with open(image_path, "wb") as buffer:
+        shutil.copyfileobj(image.file, buffer)
+    print(f"you location is: {latitude}, {longitude}")
+    return Location
 
 # Create the database tables
 Base.metadata.create_all(bind=engine)
