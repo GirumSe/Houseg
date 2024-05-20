@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI, HTTPException, status, UploadFile, File
+from fastapi import Depends, FastAPI, HTTPException, status, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field, validator
@@ -189,14 +189,22 @@ async def login_for_access_token(user: UserLogin, db: Session = Depends(get_db))
     return Token(access_token=access_token, token_type="bearer", name=db_user.username)
 
 
-@app.post("/locations", response_model=LocationCreate)
-async def create_location(latitude: str,longitude: str, image: UploadFile = File(...), db: Session = Depends(get_db)):
-    unique_image_name = generate_unique_image_name()
-    image_path = f"images/{unique_image_name}"
-    with open(image_path, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
-    print(f"you location is: {latitude}, {longitude}")
-    return Location
+@app.post("/locations", )#response_model=LocationCreate)
+async def create_location(    
+    latitude: str = Form(...),
+    longitude: str = Form(...),
+    image: UploadFile = File(...), db: Session = Depends(get_db),
+    ):
+    try:
+        file_location = f"images/{image.filename}"
+        with open(file_location, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
+        return {
+            "message": f"File '{image.filename}' uploaded successfully",
+            "latitude": latitude,
+            "longitude": longitude
+        }
 
-# Create the database tables
-Base.metadata.create_all(bind=engine)
+    finally:
+        image.file.close()
+

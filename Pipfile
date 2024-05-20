@@ -12,6 +12,7 @@ sqlalchemy = "*"
 pymysql = "*"
 passlib = "*"
 aiomysql = "*"
+python-multipart = "*"
 
 [dev-packages]
 
