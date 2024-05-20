@@ -8,7 +8,7 @@ console.log(names)
 if (token && names) {
     // User is logged in
     navbar.innerHTML = `
-        <p>${names}</p>
+        <a>${names}</a>
         <a href="#" id="logout">Logout</a>
     `;
     
