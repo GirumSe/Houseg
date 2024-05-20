@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="styles/add_location.css">
+    <title>Add Location</title>
+</head>
+<body>
+    <nav>
+        <div class="left-corner">
+            <a href="index.html">Home</a>
+            <a href="add_location.html">Add Location</a>
+            <a href="#">Docs</a>
+            <a href="#">About Us</a>
+        </div>
+        <div class="right-corner" id="navbar">
+            <!-- Navbar content will be added here by JavaScript -->
+        </div>
+    </nav>
+    <h1 id="greeting">
+        <!-- Greeting will be added here by JavaScript -->
+    </h1>
+    <div class="form-container">
+        <h2>Add New Location</h2>
+        <form id="location-form">
+            <label for="latitude">Latitude:</label>
+            <input type="text" id="latitude" name="latitude" required>
+            
+            <label for="longitude">Longitude:</label>
+            <input type="text" id="longitude" name="longitude" required>
+            
+            <label for="image">Image:</label>
+            <input type="file" id="image" name="image" accept="image/*" required>
+            
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+</body>
+<script src="scripts/add_location.js"></script>
+<script src="scripts/index.js"></script>
+</html>

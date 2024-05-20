@@ -54,11 +54,9 @@ class Locations(Base):
     image_name = Column(VARCHAR(255), nullable=False)
     address = Column(VARCHAR(255), nullable=False)
     house_count = Column(BIGINT, nullable=False)
-    username = Column(VARCHAR(255), nullable=False, index=True)
+    user_id = Column(BIGINT, nullable=False, index=True)
     
-    __table_args__ = (
-        Index('username_idx', 'username'),
-    )
+    #__table_args__ = (Index('username_idx', 'username'),)
 
 class Users(Base):
     __tablename__ = "users"
