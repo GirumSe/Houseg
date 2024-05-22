@@ -41,6 +41,9 @@ document.getElementById('location-form').addEventListener('submit', async (event
     try {
         const response = await fetch('http://127.0.0.1:8000/locations', {
             method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
             body: formData
         });
 

@@ -3,6 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field, validator
 
+import cv2
+import numpy as np
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
+import torch
+import torchvision
+from torchvision.models.detection import fasterrcnn_resnet50_fpn_v2
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.ops import nms
+
 from typing import Dict, Optional, List
 import jwt
 import shutil
@@ -13,6 +24,7 @@ import string
 
 from datetime import datetime, timedelta
 
+import requests
 from sqlalchemy import Column, ForeignKey, ForeignKeyConstraint, Index, BIGINT, VARCHAR, create_engine, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -23,6 +35,7 @@ import databases
 
 # Secret key to encode the JWT token
 SECRET_KEY = "4adc1a699a4c91598fe5aa517943c7b7e04cd27c2d616c7106630d20a0925a84"
+GEOLOC_API_KEY = "664b690b99795518467894bzc14c3a1"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 100
 
@@ -146,6 +159,96 @@ def generate_unique_image_name():
     unique_image_name = f"{unique_name}.{ext}"
     return unique_image_name
 
+def get_address_from_coordinates(lat, lon, api_key):
+    base_url = "https://geocode.maps.co/reverse"
+    params = {
+        "lat": f"{lat}",
+        "lon": f"{lon}",
+        "key": api_key
+    }
+    
+    response = requests.get(base_url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        results = data["address"]
+        state = results["state"]
+        country = results["country"]
+        return {
+            "state": state,
+            "country": country,
+        }
+    else:
+        return {"error": "Request failed with status code " + str(response.status_code)}
+    
+    
+# Load the model
+model = fasterrcnn_resnet50_fpn_v2(weights=None)
+# Load the state dictionary
+num_classes = 4
+in_features = model.roi_heads.box_predictor.cls_score.in_features
+model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+model.load_state_dict(torch.load('ML_MODEL/fasterrcnn_resnet50_fpn.pth', map_location=torch.device('cpu')))
+cpu_device = torch.device('cpu')
+
+# Set the model to evaluation mode
+model.eval()
+# Define the transformation
+def get_test_transform():
+    return A.Compose([
+        ToTensorV2(p=1.0)
+    ])
+
+# Function to preprocess a single image
+def preprocess_image(image_path, transforms=None):
+    # Load the image
+    image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
+    image /= 255.0
+    
+    # Apply transforms if provided
+    if transforms:
+        sample = {'image': image}
+        sample = transforms(**sample)
+        image = sample['image']
+    
+    return image
+
+# Function to make predictions on a single image
+def predict_single_image(image_path, model, device, cpu_device, probability_threshold=0.5, iou_threshold=0.5):
+    transforms = get_test_transform()
+    image_tensor = preprocess_image(image_path, transforms).to(device)
+    print(image_tensor)
+    # Forward pass through the model
+    with torch.no_grad():
+        output = model([image_tensor])[0]
+
+    # Move the output to the CPU
+    output = {k: v.to(cpu_device) for k, v in output.items()}
+    
+    # Filter out predictions with confidence scores less than the threshold
+    scores = output['scores'].cpu().numpy()
+    boxes = output['boxes'].cpu().numpy()
+    labels = output['labels'].cpu().numpy()
+
+    # Apply NMS to the filtered boxes based on the scores
+    filtered_idx = scores >= probability_threshold
+    boxes = boxes[filtered_idx]
+    labels = labels[filtered_idx]
+    scores = scores[filtered_idx]
+
+    boxes_tensor = torch.tensor(boxes)
+    scores_tensor = torch.tensor(scores)
+    keep_idx = nms(boxes_tensor, scores_tensor, iou_threshold=iou_threshold)
+
+    boxes = boxes[keep_idx]
+    labels = labels[keep_idx]
+    scores = scores[keep_idx]
+    
+    return len(boxes)
+    
+    
+
+
 @app.post("/register", response_model=User)
 async def register_user(user: UserCreate, db: Session = Depends(get_db)):
     # Check if user already exists
@@ -189,18 +292,25 @@ async def login_for_access_token(user: UserLogin, db: Session = Depends(get_db))
     return Token(access_token=access_token, token_type="bearer", name=db_user.username)
 
 
-@app.post("/locations", )#response_model=LocationCreate)
+@app.post("/locations", response_model=LocationCreate)
 async def create_location(    
     latitude: str = Form(...),
     longitude: str = Form(...),
     image: UploadFile = File(...), db: Session = Depends(get_db),
     ):
-    try:
-        file_location = f"images/{image.filename}"
+    try:    
+        image_name = generate_unique_image_name()
+        file_location = f"images/{image_name}"
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
+            
+        address = get_address_from_coordinates(latitude, longitude, GEOLOC_API_KEY)
+        address = f"{address['country']}"
+        
+        count = predict_single_image(file_location, model, cpu_device, cpu_device)
+        print(count)
         return {
-            "message": f"File '{image.filename}' uploaded successfully",
+            "image_url": f"File '{image.filename}' uploaded successfully",
             "latitude": latitude,
             "longitude": longitude
         }

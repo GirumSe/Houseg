@@ -13,6 +13,7 @@ pymysql = "*"
 passlib = "*"
 aiomysql = "*"
 python-multipart = "*"
+torch = "*"
 
 [dev-packages]
 
