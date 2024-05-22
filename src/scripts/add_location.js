@@ -2,8 +2,6 @@ const navbar = document.getElementById('navbar');
 
 const token = localStorage.getItem('token');
 const names = localStorage.getItem('name');
-console.log(token)
-console.log(names)
 if (token && names) {
     // User is logged in
     navbar.innerHTML = `
@@ -37,6 +35,7 @@ document.getElementById('location-form').addEventListener('submit', async (event
     const formData = new FormData();
     formData.append('latitude', latitude);
     formData.append('longitude', longitude);
+    formData.append('name', names)
     formData.append('image', image);
     try {
         const response = await fetch('http://127.0.0.1:8000/locations', {

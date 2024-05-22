@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
+import matplotlib.pyplot as plt
 
 import torch
 import torchvision
@@ -35,6 +36,7 @@ import databases
 
 # Secret key to encode the JWT token
 SECRET_KEY = "4adc1a699a4c91598fe5aa517943c7b7e04cd27c2d616c7106630d20a0925a84"
+
 GEOLOC_API_KEY = "664b690b99795518467894bzc14c3a1"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 100
@@ -164,7 +166,7 @@ def get_address_from_coordinates(lat, lon, api_key):
     params = {
         "lat": f"{lat}",
         "lon": f"{lon}",
-        "key": api_key
+        "api_key": api_key
     }
     
     response = requests.get(base_url, params=params)
@@ -213,15 +215,34 @@ def preprocess_image(image_path, transforms=None):
     
     return image
 
+def draw_boxes_and_save_image(image_path, boxes, save_dir, image_name):
+    # Load the image
+    image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    
+    # Create a figure and axis
+    fig, ax = plt.subplots(1)
+    ax.imshow(image)
+    # Plot the predicted boxes in red
+    for box in boxes:
+        box = box.astype(np.int32)
+        rect = plt.Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1], fill=False, edgecolor='red', linewidth=2)
+        ax.add_patch(rect)
+    
+    # Save the figure
+    save_path = os.path.join(save_dir, image_name)
+    plt.savefig(save_path)
+    plt.close(fig)
+
 # Function to make predictions on a single image
-def predict_single_image(image_path, model, device, cpu_device, probability_threshold=0.5, iou_threshold=0.5):
+def predict_single_image(image_path, model, device, cpu_device, save_dir, probability_threshold=0.5, iou_threshold=0.5):
     transforms = get_test_transform()
     image_tensor = preprocess_image(image_path, transforms).to(device)
-    print(image_tensor)
+    
     # Forward pass through the model
     with torch.no_grad():
         output = model([image_tensor])[0]
-
+    
     # Move the output to the CPU
     output = {k: v.to(cpu_device) for k, v in output.items()}
     
@@ -229,7 +250,7 @@ def predict_single_image(image_path, model, device, cpu_device, probability_thre
     scores = output['scores'].cpu().numpy()
     boxes = output['boxes'].cpu().numpy()
     labels = output['labels'].cpu().numpy()
-
+    
     # Apply NMS to the filtered boxes based on the scores
     filtered_idx = scores >= probability_threshold
     boxes = boxes[filtered_idx]
@@ -239,13 +260,16 @@ def predict_single_image(image_path, model, device, cpu_device, probability_thre
     boxes_tensor = torch.tensor(boxes)
     scores_tensor = torch.tensor(scores)
     keep_idx = nms(boxes_tensor, scores_tensor, iou_threshold=iou_threshold)
-
+    
     boxes = boxes[keep_idx]
     labels = labels[keep_idx]
     scores = scores[keep_idx]
     
-    return len(boxes)
+    # Draw boxes and save the image
+    image_name = os.path.basename(image_path)
+    draw_boxes_and_save_image(image_path, boxes, save_dir, image_name)
     
+    return len(boxes)
     
 
 
@@ -267,7 +291,6 @@ async def register_user(user: UserCreate, db: Session = Depends(get_db)):
         email=user.email,
         password=hashed_password
     )
-    print(hashed_password)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -292,29 +315,56 @@ async def login_for_access_token(user: UserLogin, db: Session = Depends(get_db))
     return Token(access_token=access_token, token_type="bearer", name=db_user.username)
 
 
-@app.post("/locations", response_model=LocationCreate)
+@app.post("/locations", response_model=Location)
 async def create_location(    
     latitude: str = Form(...),
     longitude: str = Form(...),
-    image: UploadFile = File(...), db: Session = Depends(get_db),
-    ):
+    name: str = Form(...),
+    image: UploadFile = File(...), 
+    db: Session = Depends(get_db),
+):
     try:    
+        # Generate unique image name
         image_name = generate_unique_image_name()
         file_location = f"images/{image_name}"
+        
+        # Save the uploaded image
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
-            
-        address = get_address_from_coordinates(latitude, longitude, GEOLOC_API_KEY)
-        address = f"{address['country']}"
         
-        count = predict_single_image(file_location, model, cpu_device, cpu_device)
-        print(count)
-        return {
-            "image_url": f"File '{image.filename}' uploaded successfully",
-            "latitude": latitude,
-            "longitude": longitude
-        }
+        # Get the address from coordinates
+        address_info = get_address_from_coordinates(latitude, longitude, GEOLOC_API_KEY)
+        address = f"{address_info['country']}"
+        # Predict the house count and save the visualization
+        save_dir = "visualizations"
+        os.makedirs(save_dir, exist_ok=True)
+        house_count = predict_single_image(file_location, model, cpu_device, cpu_device, save_dir)
+        
+        # Fetch the user ID by name
+        user = db.query(Users).filter(Users.username == name).first()
+        if not user:
+            raise HTTPException(status_code=400, detail="User not found")
+        
+        user_id = user.id
+        
+        # Create new location record
+        new_location = Locations(
+            latitude=latitude,
+            longitude=longitude,
+            image_name=image_name,
+            address=address,
+            house_count=house_count,
+            user_id=user_id
+        )
+        
+        db.add(new_location)
+        db.commit()
+        db.refresh(new_location)
+        
+        return new_location
 
     finally:
         image.file.close()
+
+
 
