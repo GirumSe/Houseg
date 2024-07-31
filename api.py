@@ -35,9 +35,9 @@ from passlib.context import CryptContext
 import databases
 
 # Secret key to encode the JWT token
-SECRET_KEY = "4adc1a699a4c91598fe5aa517943c7b7e04cd27c2d616c7106630d20a0925a84"
+SECRET_KEY = "Enter Your JWT Incription key Here"
 
-GEOLOC_API_KEY = "664b690b99795518467894bzc14c3a1"
+GEOLOC_API_KEY = "Enter GEOLOC_API_KEY key Here"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 100
 
@@ -55,7 +55,7 @@ app.add_middleware(
 )
 
 # Database URL
-DATABASE_URL = "mysql+pymysql://houseg:houseseg1230@127.0.0.1:3306/houseg"
+DATABASE_URL = "Enter Ur MySql Database Url Here"
 
 # Initialize database connection
 database = databases.Database(DATABASE_URL)
