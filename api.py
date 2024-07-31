@@ -189,7 +189,7 @@ model = fasterrcnn_resnet50_fpn_v2(weights=None)
 num_classes = 4
 in_features = model.roi_heads.box_predictor.cls_score.in_features
 model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-model.load_state_dict(torch.load('ML_MODEL/fasterrcnn_resnet50_fpn.pth', map_location=torch.device('cpu')))
+model.load_state_dict(torch.load('ML_MODEL/fasterrcnn_resnet50_fpn.pth', map_location=torch.device('cpu'))) #you can Download the model from https://www.kaggle.com/models/girumsenay/fasterrcnn_resnet50_fpn
 cpu_device = torch.device('cpu')
 
 # Set the model to evaluation mode
