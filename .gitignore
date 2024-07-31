@@ -1,3 +1,5 @@
 /images
 /ML_MODEL
 /visualizations
+/.vscode
+/__pycache__
